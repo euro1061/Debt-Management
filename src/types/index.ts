@@ -28,6 +28,6 @@ export interface Payment {
   created_at: string
 }
 
-export type DebtInsert = Omit<Debt, 'id' | 'created_at'>
+export type DebtInsert = Omit<Debt, 'id' | 'created_at' | 'sort_order'>
 export type DebtUpdate = Partial<Omit<Debt, 'id' | 'device_id' | 'created_at'>>
 export type PaymentInsert = Omit<Payment, 'id' | 'created_at'>
