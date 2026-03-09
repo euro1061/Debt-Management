@@ -1,11 +1,10 @@
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
-import { useDeviceId } from './useDeviceId'
 import type { Debt, DebtInsert, DebtUpdate } from '@/types'
 
 const debts = ref<Debt[]>([])
 const loading = ref(false)
-const deviceId = useDeviceId()
+const FAMILY_ID = 'family'
 
 export function useDebts() {
   async function fetchDebts() {
@@ -13,7 +12,8 @@ export function useDebts() {
     const { data, error } = await supabase
       .from('debts')
       .select('*')
-      .eq('device_id', deviceId)
+      .eq('device_id', FAMILY_ID)
+      .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true })
 
     if (!error && data) {
@@ -23,9 +23,11 @@ export function useDebts() {
   }
 
   async function addDebt(debt: Omit<DebtInsert, 'device_id'>) {
+    const maxOrder = debts.value.reduce((m, d) => Math.max(m, d.sort_order ?? 0), 0)
+
     const { data, error } = await supabase
       .from('debts')
-      .insert({ ...debt, device_id: deviceId })
+      .insert({ ...debt, device_id: FAMILY_ID, sort_order: maxOrder + 1 })
       .select()
       .single()
 
@@ -40,7 +42,7 @@ export function useDebts() {
       .from('debts')
       .update(updates)
       .eq('id', id)
-      .eq('device_id', deviceId)
+      .eq('device_id', FAMILY_ID)
       .select()
       .single()
 
@@ -56,7 +58,7 @@ export function useDebts() {
       .from('debts')
       .delete()
       .eq('id', id)
-      .eq('device_id', deviceId)
+      .eq('device_id', FAMILY_ID)
 
     if (!error) {
       debts.value = debts.value.filter(d => d.id !== id)
@@ -68,6 +70,25 @@ export function useDebts() {
     return updateDebt(id, { remaining })
   }
 
+  async function reorderDebts(orderedIds: string[]) {
+    const updated: Debt[] = []
+    const promises = orderedIds.map((id, index) =>
+      supabase
+        .from('debts')
+        .update({ sort_order: index })
+        .eq('id', id)
+        .eq('device_id', FAMILY_ID)
+        .select()
+        .single()
+        .then(({ data }) => { if (data) updated.push(data as Debt) })
+    )
+    await Promise.all(promises)
+
+    debts.value = orderedIds.map(id =>
+      updated.find(d => d.id === id) || debts.value.find(d => d.id === id)!
+    ).filter(Boolean)
+  }
+
   return {
     debts,
     loading,
@@ -75,6 +96,7 @@ export function useDebts() {
     addDebt,
     updateDebt,
     deleteDebt,
-    updateDebtRemaining
+    updateDebtRemaining,
+    reorderDebts
   }
 }

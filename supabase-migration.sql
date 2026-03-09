@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS payments (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+ALTER TABLE debts ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+
 CREATE INDEX IF NOT EXISTS idx_debts_device_id ON debts(device_id);
 CREATE INDEX IF NOT EXISTS idx_payments_device_id ON payments(device_id);
 CREATE INDEX IF NOT EXISTS idx_payments_debt_id ON payments(debt_id);

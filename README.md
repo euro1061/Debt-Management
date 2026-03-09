@@ -1,6 +1,6 @@
 # Debt Free - ระบบจัดการหนี้ครบวงจร
 
-แอป Single-Page สำหรับติดตามหนี้ส่วนบุคคล บิลรายเดือน คำนวณระยะเวลาปลดหนี้ และแนะนำกลยุทธ์การชำระ รองรับ PWA ติดตั้งเป็นแอปบนมือถือได้
+แอป Single-Page สำหรับติดตามหนี้ส่วนบุคคล บิลรายเดือน คำนวณระยะเวลาปลดหนี้ และแนะนำกลยุทธ์การชำระ รองรับ PWA ติดตั้งเป็นแอปบนมือถือได้ ใช้งานร่วมกันในครอบครัวได้ (ข้อมูลชุดเดียวกันทุกอุปกรณ์)
 
 ## Tech Stack
 
@@ -45,8 +45,8 @@ debt-dashboard/
     │   └── calculations.ts     # calculateMonthsToPayoff(), calculateOverallFreedomDate()
     │
     ├── composables/
-    │   ├── useDeviceId.ts      # สร้าง/ดึง anonymous UUID จาก localStorage
-    │   ├── useDebts.ts         # CRUD หนี้ผ่าน Supabase (fetch/add/update/delete)
+    │   ├── useDeviceId.ts      # สร้าง/ดึง anonymous UUID จาก localStorage (legacy, ไม่ได้ใช้แล้ว)
+    │   ├── useDebts.ts         # CRUD หนี้ผ่าน Supabase (fetch/add/update/delete/reorder)
     │   ├── usePayments.ts      # CRUD การชำระผ่าน Supabase (fetch/add/update/delete)
     │   └── useTheme.ts         # สลับ dark/light mode
     │
@@ -57,7 +57,7 @@ debt-dashboard/
         ├── ToastNotification.vue   # Toast แจ้งเตือน
         ├── ConfirmModal.vue        # Modal ยืนยันลบ (animated)
         │
-        ├── DebtList.vue            # รายการหนี้ แยก 2 แท็บ: หนี้สิน / บิลรายเดือน
+        ├── DebtList.vue            # รายการหนี้ แยก 2 แท็บ: หนี้สิน / บิลรายเดือน + drag-and-drop จัดเรียง
         ├── DebtItem.vue            # การ์ดหนี้ (progress bar) หรือ การ์ดบิล (สถานะจ่าย/ยังไม่จ่าย)
         ├── DebtModal.vue           # Modal เพิ่ม/แก้ไขหนี้ + บิล (icon picker, color picker, validation)
         ├── PaymentModal.vue        # Modal บันทึกการชำระ (pre-fill ยอดคงที่สำหรับบิล, validation)
@@ -65,7 +65,7 @@ debt-dashboard/
         ├── CountdownList.vue       # นับถอยหลังแต่ละหนี้ (ring chart)
         ├── WhatIfCalculator.vue    # จำลองสถานการณ์โปะเพิ่ม
         │
-        ├── UpcomingPayments.vue    # กำหนดจ่ายที่ใกล้จะถึง (ตรวจ billing cycle)
+        ├── UpcomingPayments.vue    # กำหนดจ่าย: รายวัน (สถานะวันนี้) + รายเดือน (urgency/overdue) + กดบันทึกชำระได้
         ├── PaymentHistory.vue      # ประวัติการชำระ + filter เลือกเดือน
         │
         ├── MonthlyGoal.vue         # ตั้งเป้าหมายชำระรายเดือน (ring progress, validation)
@@ -81,23 +81,24 @@ debt-dashboard/
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID (PK) | auto-generated |
-| device_id | TEXT | anonymous user identifier (localStorage UUID) |
+| device_id | TEXT | family identifier (ใช้ค่าคงที่ `'family'` เพื่อแชร์ข้อมูลทุกอุปกรณ์) |
 | name | TEXT | ชื่อเจ้าหนี้/รายการ/ชื่อบิล |
 | total_amount | NUMERIC | ยอดหนี้ทั้งหมด (0 สำหรับ recurring_bill) |
 | remaining | NUMERIC | ยอดคงเหลือ (0 สำหรับ recurring_bill) |
 | interest | NUMERIC | อัตราดอกเบี้ย (%/ปี) (0 สำหรับ recurring_bill) |
 | min_payment | NUMERIC | ยอดจ่ายขั้นต่ำ หรือ ยอดคงที่ต่อเดือนของบิล (0 = ยอดไม่คงที่) |
 | frequency | TEXT | 'monthly' / 'daily' / 'recurring_bill' |
-| due_day | INTEGER | วันที่ครบกำหนดจ่ายในแต่ละเดือน |
+| due_day | INTEGER | วันที่ครบกำหนดจ่ายในแต่ละเดือน (0 สำหรับ daily) |
 | color | TEXT | สีจำแนกรายการ (hex) |
 | icon | TEXT | Font Awesome class เช่น 'fas fa-credit-card' |
+| sort_order | INTEGER | ลำดับการจัดเรียงที่ผู้ใช้กำหนด (drag-and-drop) |
 | created_at | TIMESTAMPTZ | วันที่สร้าง |
 
 ### `payments`
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID (PK) | auto-generated |
-| device_id | TEXT | anonymous user identifier |
+| device_id | TEXT | family identifier |
 | debt_id | UUID (FK → debts) | อ้างอิงรายการหนี้ (cascade delete) |
 | debt_name | TEXT | ชื่อหนี้ (denormalized) |
 | amount | NUMERIC | จำนวนเงินที่ชำระ |
@@ -114,18 +115,22 @@ debt-dashboard/
 - สรุปหนี้รวม / ชำระแล้ว / คงเหลือ / วันอิสรภาพ (ไม่รวมบิลรายเดือน)
 - Progress bar รวม
 - รายการหนี้ทั้งหมด — **แยก 2 แท็บ: หนี้สิน / บิลรายเดือน** พร้อมจำนวนนับ
+- **Drag-and-drop จัดเรียง** — กดปุ่ม "จัดเรียง" แล้วลากสลับตำแหน่งได้ (บันทึกลำดับลง Supabase)
 - หนี้ปกติ: icon + สี + progress bar + ยอดคงเหลือ + ดอกเบี้ย
 - บิลรายเดือน: สถานะ "จ่ายแล้ว/ยังไม่จ่าย" ของเดือนนี้ + ยอดที่จ่ายล่าสุด
 - บิลยอดคงที่ (เน็ตบ้าน/subscription): กรอกยอดไว้ ระบบ pre-fill ตอนชำระ
 - CRUD + ชำระด่วน
 - **Form Validation** — ทุกฟิลด์ required แสดง `*` + ข้อความ error สีแดงใต้ฟิลด์ + ขอบแดง
+- หนี้รายวันไม่ต้องกรอกวันครบกำหนด (ซ่อนฟิลด์อัตโนมัติ)
 
 ### Tab 2: คำนวณ (Calculator)
 - นับถอยหลังแต่ละหนี้ (ring SVG chart)
 - What-If: จำลองผลลัพธ์ถ้าโปะเพิ่ม
 
 ### Tab 3: การชำระ (Payments)
-- กำหนดจ่ายที่ใกล้จะถึง (urgency badges) + ตรวจว่า billing cycle นี้จ่ายแล้วหรือยัง
+- **รายจ่ายรายวัน** — แสดงสถานะจ่ายวันนี้ (จ่ายแล้ว/ยังไม่จ่าย) กดบันทึกชำระได้ทันที
+- **กำหนดจ่ายรายเดือน** — urgency badges + ตรวจ billing cycle + แสดง **"เลยกำหนด X วัน"** เมื่อยังไม่จ่าย
+- **กดที่รายการเพื่อบันทึกชำระได้เลย** — เปิด PaymentModal พร้อม pre-select หนี้ที่กด
 - ประวัติการชำระ — **filter เลือกเดือน** + สรุปจำนวน/ยอดรวม + แก้ไข/ลบได้
 
 ### Tab 4: วิเคราะห์ (Insights)
@@ -151,11 +156,14 @@ debt-dashboard/
 
 - **No Pinia / Vuex** -- State อยู่ใน composables (`useDebts`, `usePayments`) ที่เป็น module-level reactive refs แชร์ข้ามทุก component ที่เรียกใช้
 - **No Vue Router** -- Tab switching ด้วย `v-show` + `activeTab` ref ใน App.vue
-- **Anonymous Identity** -- `useDeviceId` สร้าง UUID เก็บใน localStorage ใช้เป็น `device_id` filter ใน Supabase (ไม่มีระบบ login ยังรองรับเพิ่ม Auth ภายหลังได้)
+- **Family Shared Data** -- ใช้ `device_id = 'family'` คงที่แทน UUID ต่ออุปกรณ์ ทำให้ทุกคนในครอบครัวเห็นข้อมูลเดียวกัน
 - **Dark/Light Theme** -- CSS Variables ใน `:root` / `.dark` class toggle บน `<body>`
 - **Payment Calculation** -- เมื่อบันทึกชำระ จะคำนวณ interest portion = remaining × monthly rate แล้ว principal portion = amount - interest ก่อนอัพเดทยอดคงเหลือ (ไม่ใช้กับ recurring_bill)
+- **Drag-and-Drop Ordering** -- จัดเรียงรายการหนี้ด้วย drag (HTML5 drag บนเดสก์ท็อป + touch events บนมือถือ) บันทึก `sort_order` ลง Supabase
+- **Overdue Detection** -- รายการที่เลยกำหนดชำระแล้วยังไม่จ่ายจะแสดงเป็นสีแดง "เลยกำหนด X วัน" แทนที่จะข้ามไปเดือนถัดไป
+- **Daily Debt Handling** -- หนี้รายวันแยกแสดงในส่วนของตัวเอง เช็คสถานะจ่ายเฉพาะวันนี้ ไม่แสดงในปฏิทินรายเดือน
 - **PWA** -- vite-plugin-pwa สร้าง manifest + service worker อัตโนมัติ แคช CDN (Font Awesome, Google Fonts)
-- **Smart Notifications** -- แจ้งเตือนวันละ 1 ครั้ง รวมรายการเป็น notification เดียว ไม่ซ้ำถ้าเปิดใหม่
+- **Smart Notifications** -- แจ้งเตือนวันละ 1 ครั้ง รวมรายการเป็น notification เดียว ไม่ซ้ำถ้าเปิดใหม่ (ไม่แจ้งเตือนหนี้รายวัน)
 - **Monthly Goal** -- เก็บเป้าหมายใน localStorage (ไม่ต้องเปลี่ยน schema)
 - **Form Validation** -- ทุก Modal/Form มี client-side validation แสดง error แบบ inline ใต้ฟิลด์ พร้อม `*` ระบุ required, ขอบแดงเมื่อผิด, reset เมื่อเปิด modal ใหม่
 
@@ -179,3 +187,8 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 และรัน `supabase-migration.sql` ใน Supabase SQL Editor เพื่อสร้างตาราง
+
+หากเป็นโปรเจกต์ที่มีอยู่แล้ว ต้องเพิ่มคอลัมน์ `sort_order`:
+```sql
+ALTER TABLE debts ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+```

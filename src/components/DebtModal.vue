@@ -30,6 +30,7 @@ const minPayment = ref<number | string>('')
 const frequency = ref<'monthly' | 'daily' | 'recurring_bill'>('monthly')
 
 const isRecurringBill = computed(() => frequency.value === 'recurring_bill')
+const isDaily = computed(() => frequency.value === 'daily')
 const dueDay = ref<number | string>('')
 const selectedColor = ref('#6366f1')
 const selectedIcon = ref('fas fa-credit-card')
@@ -137,8 +138,10 @@ function clearForm() {
 function validate(): boolean {
   const e: Record<string, string> = {}
   if (!name.value.trim()) e.name = 'กรุณากรอกชื่อ'
-  const dd = parseInt(String(dueDay.value))
-  if (!dd || dd < 1 || dd > 31) e.dueDay = 'กรุณาระบุวันที่ 1-31'
+  if (!isDaily.value) {
+    const dd = parseInt(String(dueDay.value))
+    if (!dd || dd < 1 || dd > 31) e.dueDay = 'กรุณาระบุวันที่ 1-31'
+  }
 
   if (!isRecurringBill.value) {
     if (!String(totalAmount.value) || isNaN(parseFloat(String(totalAmount.value))) || parseFloat(String(totalAmount.value)) <= 0)
@@ -184,7 +187,7 @@ function handleSave() {
     interest: parseFloat(String(interest.value)),
     min_payment: parseFloat(String(minPayment.value)),
     frequency: frequency.value,
-    due_day: parseInt(String(dueDay.value)) || 1,
+    due_day: isDaily.value ? 0 : (parseInt(String(dueDay.value)) || 1),
     color: selectedColor.value,
     icon: selectedIcon.value
   })
@@ -249,7 +252,7 @@ function handleSave() {
           </div>
         </template>
 
-        <div class="form-group">
+        <div v-if="!isDaily" class="form-group">
           <label>วันที่ครบกำหนด <span class="required">*</span></label>
           <input v-model="dueDay" type="number" class="form-control" :class="{ 'has-error': submitted && errors.dueDay }" placeholder="25" min="1" max="31">
           <span v-if="submitted && errors.dueDay" class="field-error">{{ errors.dueDay }}</span>

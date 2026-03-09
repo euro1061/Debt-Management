@@ -648,7 +648,7 @@ body {
 .upcoming-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
 }
 
 .upcoming-item {
@@ -696,6 +696,11 @@ body {
 .upcoming-normal {
     background: var(--accent-light);
     color: var(--accent);
+}
+
+.upcoming-overdue {
+    background: #fef2f2;
+    color: #dc2626;
 }
 
 .upcoming-info {

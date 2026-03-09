@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import type { Debt, Payment } from '@/types'
 import DebtItem from './DebtItem.vue'
 
@@ -9,30 +9,143 @@ const emit = defineEmits<{
   (e: 'edit', id: string): void
   (e: 'delete', id: string): void
   (e: 'pay', id: string): void
+  (e: 'reorder', ids: string[]): void
 }>()
 
 const activeTab = ref<'debt' | 'bill'>('debt')
+const reorderMode = ref(false)
 
 const debtItems = computed(() => props.debts.filter(d => d.frequency !== 'recurring_bill'))
 const billItems = computed(() => props.debts.filter(d => d.frequency === 'recurring_bill'))
 
-const currentList = computed(() => activeTab.value === 'debt' ? debtItems.value : billItems.value)
+const localDebtOrder = ref<Debt[]>([])
+const localBillOrder = ref<Debt[]>([])
+
+watch(debtItems, list => { localDebtOrder.value = [...list] }, { immediate: true })
+watch(billItems, list => { localBillOrder.value = [...list] }, { immediate: true })
+
+const currentList = computed(() =>
+  activeTab.value === 'debt' ? localDebtOrder.value : localBillOrder.value
+)
+
+function getActiveListRef() {
+  return activeTab.value === 'debt' ? localDebtOrder : localBillOrder
+}
+
+function toggleReorderMode() {
+  reorderMode.value = !reorderMode.value
+}
+
+// --- Drag state ---
+const listEl = ref<HTMLElement | null>(null)
+const draggingIdx = ref<number | null>(null)
+
+function moveItem(from: number, to: number) {
+  if (from === to) return
+  const listRef = getActiveListRef()
+  const list = [...listRef.value]
+  const [item] = list.splice(from, 1)
+  list.splice(to, 0, item)
+  listRef.value = list
+  draggingIdx.value = to
+}
+
+function commitOrder() {
+  const listRef = getActiveListRef()
+  emit('reorder', listRef.value.map(d => d.id))
+  draggingIdx.value = null
+}
+
+// --- Desktop HTML5 Drag ---
+function onDragStart(e: DragEvent, idx: number) {
+  if (!reorderMode.value) { e.preventDefault(); return }
+  const handle = (e.target as HTMLElement).closest('.drag-handle')
+  if (!handle) { e.preventDefault(); return }
+  draggingIdx.value = idx
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', '')
+  }
+  const wrapper = (e.target as HTMLElement).closest('.debt-drag-wrapper') as HTMLElement | null
+  if (wrapper && e.dataTransfer) {
+    e.dataTransfer.setDragImage(wrapper, wrapper.offsetWidth / 2, 20)
+  }
+}
+
+function onDragEnter(idx: number) {
+  if (draggingIdx.value !== null && draggingIdx.value !== idx) {
+    moveItem(draggingIdx.value, idx)
+  }
+}
+
+function onDragEnd() {
+  if (draggingIdx.value !== null) commitOrder()
+}
+
+// --- Mobile Touch Drag ---
+function onTouchStart(e: TouchEvent, idx: number) {
+  if (!reorderMode.value) return
+  draggingIdx.value = idx
+  document.addEventListener('touchmove', onTouchMove, { passive: false })
+  document.addEventListener('touchend', onTouchEnd)
+}
+
+function onTouchMove(e: TouchEvent) {
+  if (draggingIdx.value === null || !listEl.value) return
+  e.preventDefault()
+
+  const touch = e.touches[0]
+  const wrappers = listEl.value.querySelectorAll('.debt-drag-wrapper')
+
+  for (let i = 0; i < wrappers.length; i++) {
+    const rect = wrappers[i].getBoundingClientRect()
+    const midY = rect.top + rect.height / 2
+    if (touch.clientY < midY) {
+      if (i !== draggingIdx.value) moveItem(draggingIdx.value, i)
+      return
+    }
+  }
+  const lastIdx = wrappers.length - 1
+  if (draggingIdx.value !== lastIdx) moveItem(draggingIdx.value, lastIdx)
+}
+
+function onTouchEnd() {
+  document.removeEventListener('touchmove', onTouchMove)
+  document.removeEventListener('touchend', onTouchEnd)
+  if (draggingIdx.value !== null) commitOrder()
+}
+
+onUnmounted(() => {
+  document.removeEventListener('touchmove', onTouchMove)
+  document.removeEventListener('touchend', onTouchEnd)
+})
 </script>
 
 <template>
   <section>
     <div class="section-header">
       <h2><i class="fas fa-list-check"></i> ทะเบียนหนี้</h2>
-      <button class="btn-primary btn-sm" @click="emit('add')">
-        <i class="fas fa-plus"></i> เพิ่มรายการ
-      </button>
+      <div class="section-header-actions">
+        <button
+          v-if="currentList.length > 1"
+          class="btn-reorder"
+          :class="{ active: reorderMode }"
+          @click="toggleReorderMode"
+        >
+          <i class="fas fa-arrows-up-down"></i>
+          {{ reorderMode ? 'เสร็จสิ้น' : 'จัดเรียง' }}
+        </button>
+        <button class="btn-primary btn-sm" @click="emit('add')">
+          <i class="fas fa-plus"></i> เพิ่มรายการ
+        </button>
+      </div>
     </div>
 
     <div class="debt-tabs">
       <button
         class="debt-tab"
         :class="{ active: activeTab === 'debt' }"
-        @click="activeTab = 'debt'"
+        @click="activeTab = 'debt'; reorderMode = false"
       >
         <i class="fas fa-file-invoice-dollar"></i>
         หนี้สิน
@@ -41,7 +154,7 @@ const currentList = computed(() => activeTab.value === 'debt' ? debtItems.value 
       <button
         class="debt-tab"
         :class="{ active: activeTab === 'bill' }"
-        @click="activeTab = 'bill'"
+        @click="activeTab = 'bill'; reorderMode = false"
       >
         <i class="fas fa-receipt"></i>
         บิลรายเดือน
@@ -49,16 +162,33 @@ const currentList = computed(() => activeTab.value === 'debt' ? debtItems.value 
       </button>
     </div>
 
-    <div class="debt-list">
-      <DebtItem
-        v-for="debt in currentList"
+    <div ref="listEl" class="debt-list" :class="{ 'reorder-active': reorderMode }">
+      <div
+        v-for="(debt, idx) in currentList"
         :key="debt.id"
-        :debt="debt"
-        :payments="payments"
-        @edit="emit('edit', $event)"
-        @delete="emit('delete', $event)"
-        @pay="emit('pay', $event)"
-      />
+        class="debt-drag-wrapper"
+        :class="{ 'is-dragging': draggingIdx === idx }"
+        :draggable="reorderMode"
+        @dragstart="onDragStart($event, idx)"
+        @dragenter="onDragEnter(idx)"
+        @dragover.prevent
+        @dragend="onDragEnd"
+      >
+        <div
+          v-if="reorderMode"
+          class="drag-handle"
+          @touchstart.prevent="onTouchStart($event, idx)"
+        >
+          <i class="fas fa-grip-vertical"></i>
+        </div>
+        <DebtItem
+          :debt="debt"
+          :payments="payments"
+          @edit="emit('edit', $event)"
+          @delete="emit('delete', $event)"
+          @pay="emit('pay', $event)"
+        />
+      </div>
     </div>
 
     <div v-if="currentList.length === 0" class="empty-state">
@@ -77,6 +207,39 @@ const currentList = computed(() => activeTab.value === 'debt' ? debtItems.value 
 </template>
 
 <style scoped>
+.section-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-reorder {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-reorder:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-reorder.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
 .debt-tabs {
   display: flex;
   gap: 6px;
@@ -135,5 +298,49 @@ const currentList = computed(() => activeTab.value === 'debt' ? debtItems.value 
 .debt-tab.active .debt-tab-count {
   background: var(--accent);
   color: white;
+}
+
+.debt-drag-wrapper {
+  display: flex;
+  align-items: stretch;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.debt-drag-wrapper :deep(.debt-item) {
+  flex: 1;
+  min-width: 0;
+}
+
+.debt-drag-wrapper.is-dragging {
+  opacity: 0.5;
+  transform: scale(0.97);
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  flex-shrink: 0;
+  cursor: grab;
+  color: var(--accent);
+  font-size: 1rem;
+  touch-action: none;
+  user-select: none;
+  opacity: 0.7;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.drag-handle:hover {
+  opacity: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.reorder-active .debt-drag-wrapper :deep(.debt-item) {
+  border-color: var(--accent);
+  border-style: dashed;
 }
 </style>

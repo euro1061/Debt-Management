@@ -22,7 +22,7 @@ import MonthlyChart from '@/components/MonthlyChart.vue'
 import MonthlyGoal from '@/components/MonthlyGoal.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 
-const { debts, fetchDebts, addDebt, updateDebt, deleteDebt, updateDebtRemaining } = useDebts()
+const { debts, fetchDebts, addDebt, updateDebt, deleteDebt, updateDebtRemaining, reorderDebts } = useDebts()
 const { payments, fetchPayments, addPayment, updatePayment, deletePayment } = usePayments()
 
 const activeTab = ref('dashboard')
@@ -253,6 +253,7 @@ function checkUpcomingAlerts() {
   const pending: { name: string; daysText: string; amount: string }[] = []
 
   debts.value.forEach(d => {
+    if (d.frequency === 'daily') return
     const dueDay = parseInt(String(d.due_day)) || 1
     if (isPaidThisCycle(d.id, dueDay)) return
 
@@ -311,6 +312,7 @@ onMounted(async () => {
         @edit="openEditDebt"
         @delete="handleDeleteDebt"
         @pay="openQuickPay"
+        @reorder="reorderDebts"
       />
     </section>
 
@@ -349,7 +351,7 @@ onMounted(async () => {
         </button>
       </div>
 
-      <UpcomingPayments v-show="calendarSubTab === 'upcoming'" :debts="debts" :payments="payments" />
+      <UpcomingPayments v-show="calendarSubTab === 'upcoming'" :debts="debts" :payments="payments" @pay="openQuickPay" />
 
       <PaymentHistory
         v-show="calendarSubTab === 'history'"

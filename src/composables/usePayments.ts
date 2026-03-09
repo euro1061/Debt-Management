@@ -1,11 +1,10 @@
 import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
-import { useDeviceId } from './useDeviceId'
 import type { Payment, PaymentInsert } from '@/types'
 
 const payments = ref<Payment[]>([])
 const loading = ref(false)
-const deviceId = useDeviceId()
+const FAMILY_ID = 'family'
 
 export function usePayments() {
   async function fetchPayments() {
@@ -13,7 +12,7 @@ export function usePayments() {
     const { data, error } = await supabase
       .from('payments')
       .select('*')
-      .eq('device_id', deviceId)
+      .eq('device_id', FAMILY_ID)
       .order('created_at', { ascending: false })
 
     if (!error && data) {
@@ -25,7 +24,7 @@ export function usePayments() {
   async function addPayment(payment: Omit<PaymentInsert, 'device_id'>) {
     const { data, error } = await supabase
       .from('payments')
-      .insert({ ...payment, device_id: deviceId })
+      .insert({ ...payment, device_id: FAMILY_ID })
       .select()
       .single()
 
@@ -40,7 +39,7 @@ export function usePayments() {
       .from('payments')
       .update(updates)
       .eq('id', id)
-      .eq('device_id', deviceId)
+      .eq('device_id', FAMILY_ID)
       .select()
       .single()
 
@@ -56,7 +55,7 @@ export function usePayments() {
       .from('payments')
       .delete()
       .eq('id', id)
-      .eq('device_id', deviceId)
+      .eq('device_id', FAMILY_ID)
 
     if (!error) {
       payments.value = payments.value.filter(p => p.id !== id)

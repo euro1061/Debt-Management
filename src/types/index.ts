@@ -10,6 +10,7 @@ export interface Debt {
   due_day: number
   color: string
   icon: string
+  sort_order: number
   created_at: string
 }
 
