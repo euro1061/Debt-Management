@@ -71,22 +71,37 @@ export function useDebts() {
   }
 
   async function reorderDebts(orderedIds: string[]) {
-    const updated: Debt[] = []
-    const promises = orderedIds.map((id, index) =>
-      supabase
-        .from('debts')
-        .update({ sort_order: index })
-        .eq('id', id)
-        .eq('device_id', FAMILY_ID)
-        .select()
-        .single()
-        .then(({ data }) => { if (data) updated.push(data as Debt) })
+    const results = await Promise.all(
+      orderedIds.map((id, index) =>
+        supabase
+          .from('debts')
+          .update({ sort_order: index })
+          .eq('id', id)
+          .eq('device_id', FAMILY_ID)
+          .select()
+          .single()
+      )
     )
-    await Promise.all(promises)
 
-    debts.value = orderedIds.map(id =>
-      updated.find(d => d.id === id) || debts.value.find(d => d.id === id)!
-    ).filter(Boolean)
+    for (const { data } of results) {
+      if (!data) continue
+      const idx = debts.value.findIndex(d => d.id === (data as Debt).id)
+      if (idx !== -1) debts.value[idx] = data as Debt
+    }
+
+    debts.value.sort((a, b) =>
+      (a.sort_order ?? 0) - (b.sort_order ?? 0) || (a.created_at || '').localeCompare(b.created_at || '')
+    )
+  }
+
+  async function clearAllDebts() {
+    const { error } = await supabase
+      .from('debts')
+      .delete()
+      .eq('device_id', FAMILY_ID)
+
+    if (!error) debts.value = []
+    return { error }
   }
 
   return {
@@ -97,6 +112,7 @@ export function useDebts() {
     updateDebt,
     deleteDebt,
     updateDebtRemaining,
-    reorderDebts
+    reorderDebts,
+    clearAllDebts
   }
 }

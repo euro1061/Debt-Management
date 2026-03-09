@@ -21,8 +21,11 @@ import InterestAnalysis from '@/components/InterestAnalysis.vue'
 import MonthlyChart from '@/components/MonthlyChart.vue'
 import MonthlyGoal from '@/components/MonthlyGoal.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import SettingsPage from '@/components/SettingsPage.vue'
+import { useSettings } from '@/composables/useSettings'
 
 const { debts, fetchDebts, addDebt, updateDebt, deleteDebt, updateDebtRemaining, reorderDebts } = useDebts()
+const { alertDays } = useSettings()
 const { payments, fetchPayments, addPayment, updatePayment, deletePayment } = usePayments()
 
 const activeTab = ref('dashboard')
@@ -261,7 +264,7 @@ function checkUpcomingAlerts() {
     if (nextDue < today) nextDue.setMonth(nextDue.getMonth() + 1)
     const diff = Math.ceil((nextDue.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
-    if (diff <= 3 && diff >= 0) {
+    if (diff <= alertDays.value && diff >= 0) {
       pending.push({
         name: d.name,
         daysText: diff === 0 ? 'วันนี้' : `อีก ${diff} วัน`,
@@ -372,6 +375,11 @@ onMounted(async () => {
       <DailySummary :debts="debts" />
       <StrategyRecommendation :debts="debts" />
       <InterestAnalysis :debts="debts" :payments="payments" />
+    </section>
+
+    <!-- Tab 5: Settings -->
+    <section v-show="activeTab === 'settings'" class="tab-pane active">
+      <SettingsPage />
     </section>
   </main>
 

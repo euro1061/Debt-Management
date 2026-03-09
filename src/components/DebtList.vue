@@ -39,6 +39,7 @@ function toggleReorderMode() {
 // --- Drag state ---
 const listEl = ref<HTMLElement | null>(null)
 const draggingIdx = ref<number | null>(null)
+let dragFromHandle = false
 
 function moveItem(from: number, to: number) {
   if (from === to) return
@@ -57,18 +58,21 @@ function commitOrder() {
 }
 
 // --- Desktop HTML5 Drag ---
+function onHandleMouseDown() {
+  dragFromHandle = true
+}
+
 function onDragStart(e: DragEvent, idx: number) {
-  if (!reorderMode.value) { e.preventDefault(); return }
-  const handle = (e.target as HTMLElement).closest('.drag-handle')
-  if (!handle) { e.preventDefault(); return }
+  if (!reorderMode.value || !dragFromHandle) {
+    e.preventDefault()
+    dragFromHandle = false
+    return
+  }
+  dragFromHandle = false
   draggingIdx.value = idx
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', '')
-  }
-  const wrapper = (e.target as HTMLElement).closest('.debt-drag-wrapper') as HTMLElement | null
-  if (wrapper && e.dataTransfer) {
-    e.dataTransfer.setDragImage(wrapper, wrapper.offsetWidth / 2, 20)
   }
 }
 
@@ -177,6 +181,7 @@ onUnmounted(() => {
         <div
           v-if="reorderMode"
           class="drag-handle"
+          @mousedown="onHandleMouseDown"
           @touchstart.prevent="onTouchStart($event, idx)"
         >
           <i class="fas fa-grip-vertical"></i>

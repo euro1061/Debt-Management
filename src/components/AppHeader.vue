@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useTheme } from '@/composables/useTheme'
+import { useSettings } from '@/composables/useSettings'
 
 const { isDark, toggleTheme } = useTheme()
+const { familyName } = useSettings()
 
 const todayDate = computed(() => {
   const now = new Date()
@@ -21,7 +23,7 @@ const themeIcon = computed(() => isDark.value ? 'fas fa-sun' : 'fas fa-moon')
   <header class="app-header">
     <div class="header-content">
       <div class="header-left">
-        <h1 class="app-title">Debt Free</h1>
+        <h1 class="app-title">{{ familyName || 'Debt Free' }}</h1>
         <p class="app-subtitle">{{ todayDate }}</p>
       </div>
       <button class="btn-icon" @click="toggleTheme" title="สลับธีม">

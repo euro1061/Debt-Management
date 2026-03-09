@@ -63,12 +63,23 @@ export function usePayments() {
     return { error }
   }
 
+  async function clearAllPayments() {
+    const { error } = await supabase
+      .from('payments')
+      .delete()
+      .eq('device_id', FAMILY_ID)
+
+    if (!error) payments.value = []
+    return { error }
+  }
+
   return {
     payments,
     loading,
     fetchPayments,
     addPayment,
     updatePayment,
-    deletePayment
+    deletePayment,
+    clearAllPayments
   }
 }

@@ -6,7 +6,8 @@ const tabs = [
   { id: 'dashboard', icon: 'fas fa-chart-line', label: 'ภาพรวม' },
   { id: 'calculator', icon: 'fas fa-calculator', label: 'คำนวณ' },
   { id: 'calendar', icon: 'fas fa-wallet', label: 'การชำระ' },
-  { id: 'insights', icon: 'fas fa-lightbulb', label: 'วิเคราะห์' }
+  { id: 'insights', icon: 'fas fa-lightbulb', label: 'วิเคราะห์' },
+  { id: 'settings', icon: 'fas fa-gear', label: 'ตั้งค่า' }
 ]
 </script>
 
