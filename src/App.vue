@@ -29,6 +29,8 @@ const { debts, fetchDebts, addDebt, updateDebt, deleteDebt, updateDebtRemaining,
 const { alertDays } = useSettings()
 const { payments, fetchPayments, addPayment, updatePayment, deletePayment } = usePayments()
 
+const initialLoading = ref(true)
+
 const activeTab = ref('dashboard')
 const calendarSubTab = ref<'upcoming' | 'history'>('upcoming')
 
@@ -301,6 +303,7 @@ function checkUpcomingAlerts() {
 
 onMounted(async () => {
   await Promise.all([fetchDebts(), fetchPayments()])
+  initialLoading.value = false
 
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission()
@@ -310,11 +313,33 @@ onMounted(async () => {
 </script>
 
 <template>
-  <AppHeader />
+  <!-- Loading Screen -->
+  <Transition name="loading-fade">
+    <div v-if="initialLoading" class="loading-screen">
+      <div class="loading-content">
+        <div class="loading-rings">
+          <div class="loading-ring ring-1"></div>
+          <div class="loading-ring ring-2"></div>
+          <div class="loading-ring ring-3"></div>
+          <div class="loading-icon">
+            <i class="fas fa-piggy-bank"></i>
+          </div>
+        </div>
+        <h2 class="loading-title">Debt Free</h2>
+        <p class="loading-subtitle">กำลังโหลดข้อมูล...</p>
+        <div class="loading-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+  </Transition>
 
-  <SummaryCards :debts="debts" />
+  <template v-if="!initialLoading">
+    <AppHeader />
 
-  <main class="tab-content">
+    <SummaryCards :debts="debts" />
+
+    <main class="tab-content">
     <!-- Tab 1: Dashboard -->
     <section v-show="activeTab === 'dashboard'" class="tab-pane active">
       <DebtList
@@ -441,4 +466,5 @@ onMounted(async () => {
   />
 
   <ToastNotification :message="toastMessage" :visible="toastVisible" />
+  </template>
 </template>

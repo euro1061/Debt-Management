@@ -175,6 +175,7 @@ debt-dashboard/
 - **Smart Notifications** -- แจ้งเตือนวันละ 1 ครั้ง รวมรายการเป็น notification เดียว ไม่ซ้ำถ้าเปิดใหม่ (ไม่แจ้งเตือนหนี้รายวัน)
 - **Monthly Goal** -- เก็บเป้าหมายใน localStorage (ไม่ต้องเปลี่ยน schema)
 - **Form Validation** -- ทุก Modal/Form มี client-side validation แสดง error แบบ inline ใต้ฟิลด์ พร้อม `*` ระบุ required, ขอบแดงเมื่อผิด, reset เมื่อเปิด modal ใหม่
+- **Loading Screen** -- Fullscreen loading แบบ animated (spinning rings + bouncing dots) ขณะโหลดข้อมูลจาก Supabase ครั้งแรก fade-out เมื่อ `fetchDebts()` + `fetchPayments()` เสร็จ รองรับ dark mode
 
 ## Getting Started
 
