@@ -25,6 +25,7 @@ export interface Payment {
   date: string
   note: string
   color: string
+  receipt_url: string
   created_at: string
 }
 

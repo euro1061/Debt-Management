@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { Debt, Payment } from '@/types'
 import { fmt, fmtNum } from '@/utils/format'
 import { calculateMonthsToPayoff } from '@/utils/calculations'
@@ -102,6 +102,8 @@ function formatDate(d: string) {
 const todayStr = computed(() =>
   new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })
 )
+
+const lightboxUrl = ref('')
 </script>
 
 <template>
@@ -269,7 +271,17 @@ const todayStr = computed(() =>
                       </span>
                     </div>
                     <div class="detail-history-info">
-                      <span class="detail-history-amount">-{{ fmt(p.amount) }}</span>
+                      <span class="detail-history-amount">
+                        -{{ fmt(p.amount) }}
+                        <button
+                          v-if="p.receipt_url"
+                          class="receipt-badge-sm"
+                          title="ดูสลิป"
+                          @click="lightboxUrl = p.receipt_url"
+                        >
+                          <i class="fas fa-image"></i>
+                        </button>
+                      </span>
                       <span v-if="!isRecurringBill" class="detail-history-split">
                         เงินต้น {{ fmt(p.principal) }} · ดอกเบี้ย {{ fmt(p.interest) }}
                       </span>
@@ -290,6 +302,16 @@ const todayStr = computed(() =>
             </div>
           </div>
         </Transition>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <!-- Receipt Lightbox -->
+  <Teleport to="body">
+    <Transition name="lb-fade">
+      <div v-if="lightboxUrl" class="lightbox-overlay" @click="lightboxUrl = ''">
+        <button class="lightbox-close"><i class="fas fa-xmark"></i></button>
+        <img :src="lightboxUrl" alt="สลิป" class="lightbox-img" @click.stop>
       </div>
     </Transition>
   </Teleport>
@@ -838,4 +860,77 @@ const todayStr = computed(() =>
   opacity: 0;
   transform: translateY(40px);
 }
+
+.receipt-badge-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 5px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: 0.55rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.receipt-badge-sm:hover {
+  background: var(--accent);
+  color: white;
+}
+
+/* Lightbox */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  cursor: pointer;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: all 0.2s;
+}
+
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.lightbox-img {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+  cursor: default;
+}
+
+.lb-fade-enter-active { transition: opacity 0.25s ease; }
+.lb-fade-leave-active { transition: opacity 0.2s ease; }
+.lb-fade-enter-from,
+.lb-fade-leave-to { opacity: 0; }
 </style>

@@ -24,10 +24,12 @@ import ConfirmModal from '@/components/ConfirmModal.vue'
 import DebtDetailModal from '@/components/DebtDetailModal.vue'
 import SettingsPage from '@/components/SettingsPage.vue'
 import { useSettings } from '@/composables/useSettings'
+import { useStorage } from '@/composables/useStorage'
 
 const { debts, fetchDebts, addDebt, updateDebt, deleteDebt, updateDebtRemaining, reorderDebts } = useDebts()
 const { alertDays } = useSettings()
 const { payments, fetchPayments, addPayment, updatePayment, deletePayment } = usePayments()
+const { uploadReceipt } = useStorage()
 
 const initialLoading = ref(true)
 
@@ -151,9 +153,16 @@ async function confirmDeletePayment() {
 
 async function handleSavePayment(data: {
   debtId: string; amount: number; date: string; note: string
+  receiptFile: File | null; existingReceiptUrl: string
 }) {
   const debt = debts.value.find(d => d.id === data.debtId)
   if (!debt) return
+
+  let receipt_url = data.existingReceiptUrl || ''
+  if (data.receiptFile) {
+    const url = await uploadReceipt(data.receiptFile)
+    if (url) receipt_url = url
+  }
 
   const isBill = debt.frequency === 'recurring_bill'
 
@@ -164,7 +173,8 @@ async function handleSavePayment(data: {
         principal: data.amount,
         interest: 0,
         date: data.date,
-        note: data.note
+        note: data.note,
+        receipt_url
       })
     } else {
       const oldPrincipal = Number(editingPayment.value.principal)
@@ -180,7 +190,8 @@ async function handleSavePayment(data: {
         principal: principalPortion,
         interest: interestPortion,
         date: data.date,
-        note: data.note
+        note: data.note,
+        receipt_url
       })
 
       await updateDebtRemaining(debt.id, newRemaining)
@@ -198,7 +209,8 @@ async function handleSavePayment(data: {
         interest: 0,
         date: data.date,
         note: data.note,
-        color: debt.color
+        color: debt.color,
+        receipt_url
       })
       paymentModalVisible.value = false
       showToast('บันทึกค่าบิลเรียบร้อย')
@@ -216,7 +228,8 @@ async function handleSavePayment(data: {
         interest: interestPortion,
         date: data.date,
         note: data.note,
-        color: debt.color
+        color: debt.color,
+        receipt_url
       })
 
       await updateDebtRemaining(debt.id, newRemaining)

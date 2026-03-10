@@ -10,6 +10,8 @@ const emit = defineEmits<{
   (e: 'deletePayment', payment: Payment): void
 }>()
 
+const lightboxUrl = ref('')
+
 const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
 
 const now = new Date()
@@ -127,7 +129,17 @@ function formatDate(d: string) {
             <i class="fas fa-receipt"></i>
           </div>
           <div class="payment-info">
-            <div class="payment-name">{{ p.debt_name }}</div>
+            <div class="payment-name">
+              {{ p.debt_name }}
+              <button
+                v-if="p.receipt_url"
+                class="receipt-badge"
+                title="ดูสลิป"
+                @click="lightboxUrl = p.receipt_url"
+              >
+                <i class="fas fa-image"></i>
+              </button>
+            </div>
             <div class="payment-meta">
               <span>
                 <i class="fas fa-calendar"></i>
@@ -158,6 +170,16 @@ function formatDate(d: string) {
       <p class="opacity-60">ไม่มีรายการชำระในเดือนนี้</p>
     </div>
   </div>
+
+  <!-- Receipt Lightbox -->
+  <Teleport to="body">
+    <Transition name="lb-fade">
+      <div v-if="lightboxUrl" class="lightbox-overlay" @click="lightboxUrl = ''">
+        <button class="lightbox-close"><i class="fas fa-xmark"></i></button>
+        <img :src="lightboxUrl" alt="สลิป" class="lightbox-img" @click.stop>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -308,4 +330,81 @@ function formatDate(d: string) {
 .payment-action-btn:active {
   transform: scale(0.9);
 }
+
+.receipt-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.receipt-badge:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.receipt-badge:active {
+  transform: scale(0.9);
+}
+
+/* Lightbox */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  cursor: pointer;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: all 0.2s;
+}
+
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.lightbox-img {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+  cursor: default;
+}
+
+.lb-fade-enter-active { transition: opacity 0.25s ease; }
+.lb-fade-leave-active { transition: opacity 0.2s ease; }
+.lb-fade-enter-from,
+.lb-fade-leave-to { opacity: 0; }
 </style>

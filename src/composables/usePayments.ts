@@ -34,7 +34,7 @@ export function usePayments() {
     return { data, error }
   }
 
-  async function updatePayment(id: string, updates: Partial<Pick<Payment, 'debt_id' | 'debt_name' | 'amount' | 'principal' | 'interest' | 'date' | 'note' | 'color'>>) {
+  async function updatePayment(id: string, updates: Partial<Pick<Payment, 'debt_id' | 'debt_name' | 'amount' | 'principal' | 'interest' | 'date' | 'note' | 'color' | 'receipt_url'>>) {
     const { data, error } = await supabase
       .from('payments')
       .update(updates)

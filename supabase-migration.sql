@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 
 ALTER TABLE debts ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS receipt_url TEXT DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS idx_debts_device_id ON debts(device_id);
 CREATE INDEX IF NOT EXISTS idx_payments_device_id ON payments(device_id);

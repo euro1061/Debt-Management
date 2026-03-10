@@ -48,6 +48,7 @@ debt-dashboard/
     │   ├── useDeviceId.ts      # สร้าง/ดึง anonymous UUID จาก localStorage (legacy, ไม่ได้ใช้แล้ว)
     │   ├── useDebts.ts         # CRUD หนี้ผ่าน Supabase (fetch/add/update/delete/reorder)
     │   ├── usePayments.ts      # CRUD การชำระผ่าน Supabase (fetch/add/update/delete)
+    │   ├── useStorage.ts       # Upload/delete สลิปใบเสร็จผ่าน Supabase Storage (bucket: receipts)
     │   └── useTheme.ts         # สลับ dark/light mode
     │
     └── components/
@@ -61,13 +62,13 @@ debt-dashboard/
         ├── DebtList.vue            # รายการหนี้ แยก 2 แท็บ: หนี้สิน / บิลรายเดือน + drag-and-drop จัดเรียง
         ├── DebtItem.vue            # การ์ดหนี้ (progress bar) หรือ การ์ดบิล (สถานะจ่าย/ยังไม่จ่าย)
         ├── DebtModal.vue           # Modal เพิ่ม/แก้ไขหนี้ + บิล (icon picker, color picker, validation)
-        ├── PaymentModal.vue        # Modal บันทึกการชำระ (pre-fill ยอดคงที่สำหรับบิล, validation)
+        ├── PaymentModal.vue        # Modal บันทึกการชำระ (pre-fill ยอดคงที่สำหรับบิล, validation, แนบสลิป)
         │
         ├── CountdownList.vue       # นับถอยหลังแต่ละหนี้ (ring chart)
         ├── WhatIfCalculator.vue    # จำลองสถานการณ์โปะเพิ่ม
         │
         ├── UpcomingPayments.vue    # กำหนดจ่าย: รายวัน (สถานะวันนี้) + รายเดือน (urgency/overdue) + กดบันทึกชำระได้
-        ├── PaymentHistory.vue      # ประวัติการชำระ + filter เลือกเดือน
+        ├── PaymentHistory.vue      # ประวัติการชำระ + filter เลือกเดือน + ดูสลิป (lightbox)
         │
         ├── MonthlyGoal.vue         # ตั้งเป้าหมายชำระรายเดือน (ring progress, validation)
         ├── MonthlyChart.vue        # กราฟแท่งสรุปยอดชำระรายเดือน (6/12/ทั้งหมด)
@@ -108,7 +109,16 @@ debt-dashboard/
 | date | DATE | วันที่ชำระ |
 | note | TEXT | หมายเหตุ |
 | color | TEXT | สีของหนี้ |
+| receipt_url | TEXT | URL สลิป/ใบเสร็จ (optional, เก็บใน Supabase Storage bucket `receipts`) |
 | created_at | TIMESTAMPTZ | วันที่บันทึก |
+
+## Supabase Storage
+
+ฟีเจอร์แนบสลิปใช้ Supabase Storage bucket ชื่อ `receipts` ต้องสร้าง bucket นี้ใน Supabase Dashboard:
+
+1. ไปที่ **Storage** → **New bucket**
+2. ตั้งชื่อ `receipts` และเลือก **Public bucket**
+3. ตั้ง policy: Allow all access (หรือจำกัดตาม use case)
 
 ## App Features (4 Tabs)
 
@@ -141,6 +151,7 @@ debt-dashboard/
 - **กำหนดจ่ายรายเดือน** — urgency badges + ตรวจ billing cycle + แสดง **"เลยกำหนด X วัน"** เมื่อยังไม่จ่าย
 - **กดที่รายการเพื่อบันทึกชำระได้เลย** — เปิด PaymentModal พร้อม pre-select หนี้ที่กด
 - ประวัติการชำระ — **filter เลือกเดือน** + สรุปจำนวน/ยอดรวม + แก้ไข/ลบได้
+- **แนบสลิป/ใบเสร็จ** — เลือกรูปภาพแนบตอนบันทึกชำระ (optional), แสดง badge ในประวัติ กดดูรูปเต็มจอแบบ Lightbox
 
 ### Tab 4: วิเคราะห์ (Insights)
 - **เป้าหมายรายเดือน** — ตั้งเป้ายอดชำระ + วงแหวน progress + สถานะถึงเป้า
@@ -176,6 +187,7 @@ debt-dashboard/
 - **Monthly Goal** -- เก็บเป้าหมายใน localStorage (ไม่ต้องเปลี่ยน schema)
 - **Form Validation** -- ทุก Modal/Form มี client-side validation แสดง error แบบ inline ใต้ฟิลด์ พร้อม `*` ระบุ required, ขอบแดงเมื่อผิด, reset เมื่อเปิด modal ใหม่
 - **Loading Screen** -- Fullscreen loading แบบ animated (spinning rings + bouncing dots) ขณะโหลดข้อมูลจาก Supabase ครั้งแรก fade-out เมื่อ `fetchDebts()` + `fetchPayments()` เสร็จ รองรับ dark mode
+- **Receipt Attachment** -- แนบสลิป/ใบเสร็จตอนบันทึกชำระ (optional) upload ไป Supabase Storage bucket `receipts` เก็บ public URL ใน `receipt_url` แสดง Lightbox ดูรูปเต็มจอในประวัติชำระ + หน้ารายละเอียดหนี้
 
 ## Getting Started
 
@@ -198,7 +210,10 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 
 และรัน `supabase-migration.sql` ใน Supabase SQL Editor เพื่อสร้างตาราง
 
-หากเป็นโปรเจกต์ที่มีอยู่แล้ว ต้องเพิ่มคอลัมน์ `sort_order`:
+หากเป็นโปรเจกต์ที่มีอยู่แล้ว ต้องเพิ่มคอลัมน์:
 ```sql
 ALTER TABLE debts ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE payments ADD COLUMN IF NOT EXISTS receipt_url TEXT DEFAULT '';
 ```
+
+และสร้าง Supabase Storage bucket ชื่อ `receipts` (public) สำหรับเก็บสลิป/ใบเสร็จ

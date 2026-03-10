@@ -17,6 +17,8 @@ const emit = defineEmits<{
     amount: number
     date: string
     note: string
+    receiptFile: File | null
+    existingReceiptUrl: string
   }): void
 }>()
 
@@ -24,6 +26,11 @@ const selectedDebtId = ref('')
 const amount = ref<number | string>('')
 const date = ref(new Date().toISOString().split('T')[0])
 const note = ref('')
+
+const receiptFile = ref<File | null>(null)
+const receiptPreview = ref<string>('')
+const existingReceiptUrl = ref('')
+const fileInput = ref<HTMLInputElement | null>(null)
 
 const searchQuery = ref('')
 const dropdownOpen = ref(false)
@@ -40,15 +47,19 @@ watch(() => props.visible, (val) => {
   }
   errors.value = {}
   submitted.value = false
+  receiptFile.value = null
+  receiptPreview.value = ''
 
   if (props.editPayment) {
     selectedDebtId.value = props.editPayment.debt_id
     amount.value = props.editPayment.amount
     date.value = props.editPayment.date
     note.value = props.editPayment.note || ''
+    existingReceiptUrl.value = props.editPayment.receipt_url || ''
   } else {
     date.value = new Date().toISOString().split('T')[0]
     note.value = ''
+    existingReceiptUrl.value = ''
 
     if (props.preselectedDebtId) {
       selectedDebtId.value = props.preselectedDebtId
@@ -113,6 +124,29 @@ function validate(): boolean {
   return Object.keys(e).length === 0
 }
 
+function onFileChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    return
+  }
+
+  receiptFile.value = file
+  existingReceiptUrl.value = ''
+  const reader = new FileReader()
+  reader.onload = () => { receiptPreview.value = reader.result as string }
+  reader.readAsDataURL(file)
+}
+
+function removeReceipt() {
+  receiptFile.value = null
+  receiptPreview.value = ''
+  existingReceiptUrl.value = ''
+  if (fileInput.value) fileInput.value.value = ''
+}
+
 function handleSave() {
   submitted.value = true
   if (!validate()) return
@@ -121,7 +155,9 @@ function handleSave() {
     debtId: selectedDebtId.value,
     amount: parseFloat(String(amount.value)),
     date: date.value,
-    note: note.value.trim()
+    note: note.value.trim(),
+    receiptFile: receiptFile.value,
+    existingReceiptUrl: existingReceiptUrl.value
   })
 }
 </script>
@@ -196,6 +232,36 @@ function handleSave() {
         <div class="form-group">
           <label>หมายเหตุ (ถ้ามี)</label>
           <input v-model="note" type="text" class="form-control" placeholder="เช่น จ่ายขั้นต่ำ, โปะเพิ่ม">
+        </div>
+
+        <div class="form-group">
+          <label>แนบสลิป / ใบเสร็จ</label>
+          <!-- Existing receipt from edit -->
+          <div v-if="existingReceiptUrl" class="receipt-preview">
+            <img :src="existingReceiptUrl" alt="สลิป" class="receipt-thumb">
+            <button class="receipt-remove" @click="removeReceipt" type="button">
+              <i class="fas fa-xmark"></i>
+            </button>
+          </div>
+          <!-- New file preview -->
+          <div v-else-if="receiptPreview" class="receipt-preview">
+            <img :src="receiptPreview" alt="สลิป" class="receipt-thumb">
+            <button class="receipt-remove" @click="removeReceipt" type="button">
+              <i class="fas fa-xmark"></i>
+            </button>
+          </div>
+          <!-- Upload button -->
+          <div v-else class="receipt-upload" @click="fileInput?.click()">
+            <i class="fas fa-camera"></i>
+            <span>เลือกรูปภาพ</span>
+          </div>
+          <input
+            ref="fileInput"
+            type="file"
+            accept="image/*"
+            class="hidden"
+            @change="onFileChange"
+          >
         </div>
       </div>
       <div class="modal-footer">
@@ -377,5 +443,75 @@ function handleSave() {
   text-align: center;
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+.receipt-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.receipt-upload:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+.receipt-upload:active {
+  transform: scale(0.98);
+}
+
+.receipt-upload i {
+  font-size: 1.1rem;
+}
+
+.receipt-preview {
+  position: relative;
+  display: inline-block;
+}
+
+.receipt-thumb {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+}
+
+.receipt-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.receipt-remove:hover {
+  background: var(--danger);
+}
+
+.hidden {
+  display: none;
 }
 </style>
