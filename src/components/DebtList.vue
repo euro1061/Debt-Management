@@ -9,6 +9,7 @@ const emit = defineEmits<{
   (e: 'edit', id: string): void
   (e: 'delete', id: string): void
   (e: 'pay', id: string): void
+  (e: 'detail', id: string): void
   (e: 'reorder', ids: string[]): void
 }>()
 
@@ -192,6 +193,7 @@ onUnmounted(() => {
           @edit="emit('edit', $event)"
           @delete="emit('delete', $event)"
           @pay="emit('pay', $event)"
+          @detail="emit('detail', $event)"
         />
       </div>
     </div>

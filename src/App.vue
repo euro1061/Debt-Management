@@ -21,6 +21,7 @@ import InterestAnalysis from '@/components/InterestAnalysis.vue'
 import MonthlyChart from '@/components/MonthlyChart.vue'
 import MonthlyGoal from '@/components/MonthlyGoal.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import DebtDetailModal from '@/components/DebtDetailModal.vue'
 import SettingsPage from '@/components/SettingsPage.vue'
 import { useSettings } from '@/composables/useSettings'
 
@@ -40,6 +41,9 @@ const editingPayment = ref<Payment | null>(null)
 
 const confirmPaymentDeleteVisible = ref(false)
 const pendingDeletePayment = ref<Payment | null>(null)
+
+const detailModalVisible = ref(false)
+const detailDebt = ref<Debt | null>(null)
 
 const confirmVisible = ref(false)
 const confirmDebtId = ref<string | null>(null)
@@ -94,6 +98,11 @@ async function confirmDeleteDebt() {
   confirmVisible.value = false
   confirmDebtId.value = null
   showToast('ลบรายการแล้ว')
+}
+
+function openDebtDetail(id: string) {
+  detailDebt.value = debts.value.find(d => d.id === id) || null
+  detailModalVisible.value = true
 }
 
 function openQuickPay(debtId: string) {
@@ -315,6 +324,7 @@ onMounted(async () => {
         @edit="openEditDebt"
         @delete="handleDeleteDebt"
         @pay="openQuickPay"
+        @detail="openDebtDetail"
         @reorder="reorderDebts"
       />
     </section>
@@ -421,6 +431,13 @@ onMounted(async () => {
     cancel-text="ยกเลิก"
     @confirm="confirmDeletePayment"
     @cancel="confirmPaymentDeleteVisible = false"
+  />
+
+  <DebtDetailModal
+    :visible="detailModalVisible"
+    :debt="detailDebt"
+    :payments="payments"
+    @close="detailModalVisible = false"
   />
 
   <ToastNotification :message="toastMessage" :visible="toastVisible" />

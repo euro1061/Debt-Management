@@ -56,6 +56,7 @@ debt-dashboard/
         ├── BottomNav.vue           # Bottom tab navigation (4 แท็บ)
         ├── ToastNotification.vue   # Toast แจ้งเตือน
         ├── ConfirmModal.vue        # Modal ยืนยันลบ (animated)
+        ├── DebtDetailModal.vue     # Modal แสดงรายละเอียดหนี้แบบเต็ม (สำหรับ screenshot/แชร์ progress)
         │
         ├── DebtList.vue            # รายการหนี้ แยก 2 แท็บ: หนี้สิน / บิลรายเดือน + drag-and-drop จัดเรียง
         ├── DebtItem.vue            # การ์ดหนี้ (progress bar) หรือ การ์ดบิล (สถานะจ่าย/ยังไม่จ่าย)
@@ -119,6 +120,14 @@ debt-dashboard/
 - หนี้ปกติ: icon + สี + progress bar + ยอดคงเหลือ + ดอกเบี้ย
 - บิลรายเดือน: สถานะ "จ่ายแล้ว/ยังไม่จ่าย" ของเดือนนี้ + ยอดที่จ่ายล่าสุด
 - บิลยอดคงที่ (เน็ตบ้าน/subscription): กรอกยอดไว้ ระบบ pre-fill ตอนชำระ
+- **ปุ่มดูรายละเอียด (Detail)** — เปิดหน้ารายละเอียดแบบเต็มจอ ออกแบบสำหรับ screenshot ส่งให้คนอื่นดู progress ได้:
+  - Progress Ring + % ชำระแล้ว
+  - ยอดรวม / ชำระแล้ว / คงเหลือ
+  - ข้อมูลดอกเบี้ย, จ่ายขั้นต่ำ, วันกำหนดจ่าย
+  - คาดว่าปลดหนี้วันไหน
+  - สรุปยอดเงินต้น/ดอกเบี้ยที่จ่ายไป
+  - ประวัติการชำระล่าสุด 10 รายการ
+  - Watermark "Debt Free Dashboard" + วันที่ปัจจุบัน
 - CRUD + ชำระด่วน
 - **Form Validation** — ทุกฟิลด์ required แสดง `*` + ข้อความ error สีแดงใต้ฟิลด์ + ขอบแดง
 - หนี้รายวันไม่ต้องกรอกวันครบกำหนด (ซ่อนฟิลด์อัตโนมัติ)

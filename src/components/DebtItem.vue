@@ -11,6 +11,7 @@ const emit = defineEmits<{
   (e: 'edit', id: string): void
   (e: 'delete', id: string): void
   (e: 'pay', id: string): void
+  (e: 'detail', id: string): void
 }>()
 
 const isRecurringBill = computed(() => props.debt.frequency === 'recurring_bill')
@@ -128,6 +129,9 @@ const isPaidThisMonth = computed(() => !!thisMonthPayment.value)
       <button class="btn-danger-sm" style="color:var(--accent)" @click="emit('edit', debt.id)" title="แก้ไข">
         <i class="fas fa-pen"></i>
       </button>
+      <button class="btn-detail-sm" @click="emit('detail', debt.id)" title="ดูรายละเอียด">
+        <i class="fas fa-expand"></i>
+      </button>
       <button class="btn-primary btn-sm" @click="emit('pay', debt.id)">
         <i class="fas fa-money-bill-wave"></i>
         {{ isRecurringBill ? 'บันทึกบิล' : 'ชำระ' }}
@@ -223,5 +227,21 @@ const isPaidThisMonth = computed(() => !!thisMonthPayment.value)
 .bill-status-due {
   font-size: 0.75rem;
   color: var(--text-secondary);
+}
+
+.btn-detail-sm {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.btn-detail-sm:hover {
+  background: var(--accent-light);
+  color: var(--accent);
 }
 </style>
